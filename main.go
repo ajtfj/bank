@@ -1,97 +1,37 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"sync"
+	"io"
+	"net/http"
+
+	"github.com/ajtfj/bank/bank"
 )
 
-type User struct {
-	cpf      string
-	name     string
-	password string
+type SignUpBody struct {
+	CPF      string `json:"cpf"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
 }
 
-type Account struct {
-	user    *User
-	balance float64
-	lock    *sync.Mutex
-}
+var (
+	jrBank = bank.NewBank()
+)
 
-type Bank struct {
-	users    map[string]User
-	accounts []Account
-}
-
-func (a *Account) Withdraw(value float64) (float64, error) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	if a.balance < value {
-		return -1, fmt.Errorf("not enough money")
-	}
-	a.balance -= value
-	return a.balance, nil
-}
-
-func (a *Account) Deposit(value float64) float64 {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	a.balance += value
-	return a.balance
-}
-
-func NewAccount(user *User) *Account {
-	account := Account{
-		user: user,
-		lock: &sync.Mutex{},
+func SignUphHandler(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("could not read request body")
 	}
 
-	return &account
-}
-
-func NewUser(cpf string, name string, password string) *User {
-	user := User{
-		cpf:      cpf,
-		name:     name,
-		password: password,
-	}
-
-	return &user
-}
-
-func NewBank() *Bank {
-	bank := Bank{}
-
-	return &bank
-}
-
-func (b *Bank) SingUp(cpf string, name string, password string) error {
-	if _, ok := b.users[cpf]; ok {
-		return fmt.Errorf("CPF already taken")
-	}
-
-	user := NewUser(cpf, name, password)
-	acc := NewAccount(user)
-
-	b.users[cpf] = *user
-	b.accounts = append(b.accounts, *acc)
-
-	return nil
-}
-
-func (b *Bank) SingIn(cpf string, password string) error {
-	if _, ok := b.users[cpf]; !ok {
-		return fmt.Errorf("CPF not found")
-	}
-
-	if b.users[cpf].password != password {
-		return fmt.Errorf("wrong password")
-	}
-
-	return nil
+	signUp := SignUpBody{}
+	json.Unmarshal(body, &signUp)
+	jrBank.SignUp(signUp.CPF, signUp.Name, signUp.Password)
 }
 
 func main() {
+	http.HandleFunc("/signup", SignUphHandler)
 
+	http.ListenAndServe(":8081", nil)
 }
