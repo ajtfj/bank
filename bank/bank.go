@@ -66,7 +66,7 @@ func NewBank() *Bank {
 	return &bank
 }
 
-func (b *Bank) SingUp(cpf string, name string, password string) error {
+func (b *Bank) SignUp(cpf string, name string, password string) error {
 	if _, ok := b.users[cpf]; ok {
 		return fmt.Errorf("CPF already taken")
 	}
@@ -80,7 +80,7 @@ func (b *Bank) SingUp(cpf string, name string, password string) error {
 	return nil
 }
 
-func (b *Bank) SingIn(cpf string, password string) error {
+func (b *Bank) SignIn(cpf string, password string) error {
 	if _, ok := b.users[cpf]; !ok {
 		return fmt.Errorf("CPF not found")
 	}
