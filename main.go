@@ -19,7 +19,7 @@ var (
 	jrBank = bank.NewBank()
 )
 
-func SignUphHandler(w http.ResponseWriter, r *http.Request) {
+func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("could not read request body")
@@ -31,7 +31,7 @@ func SignUphHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/signup", SignUphHandler)
+	http.HandleFunc("/signup", SignUpHandler)
 
 	http.ListenAndServe(":8081", nil)
 }
