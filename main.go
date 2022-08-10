@@ -14,8 +14,16 @@ type SignUpBody struct {
 	Password string `json:"password"`
 }
 
-type Deposit struct {
+type DepositRequestBody struct {
 	Value float64 `json:"value"`
+}
+
+type WithdrawRequestBody struct {
+	Value float64 `json:"value"`
+}
+
+type BalanceResponseBody struct {
+	Balance float64 `json:"balance"`
 }
 
 type Credentials struct {
@@ -35,8 +43,16 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	signUp := SignUpBody{}
-	json.Unmarshal(body, &signUp)
-	jrBank.SignUp(signUp.CPF, signUp.Name, signUp.Password)
+	if err := json.Unmarshal(body, &signUp); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
+	if err := jrBank.SignUp(signUp.CPF, signUp.Name, signUp.Password); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func GetAuthenticatedUser(r *http.Request) (*bank.User, error) {
@@ -72,15 +88,72 @@ func DepositHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deposit := Deposit{}
-	json.Unmarshal(body, &deposit)
-	user.Account.Deposit(deposit.Value)
+	deposit := DepositRequestBody{}
+	if err := json.Unmarshal(body, &deposit); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
+
+	balance := user.Account.Deposit(deposit.Value)
+	balannceResponseBody := BalanceResponseBody{
+		Balance: balance,
+	}
+	jsonResponseBody, err := json.Marshal(balannceResponseBody)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponseBody)
+}
+
+func WithdrawHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := GetAuthenticatedUser(r)
+	if err != nil {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Could not read request body", http.StatusInternalServerError)
+		return
+	}
+
+	withdraw := WithdrawRequestBody{}
+	if err := json.Unmarshal(body, &withdraw); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	balance, err := user.Account.Withdraw(withdraw.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	balanceResponseBody := BalanceResponseBody{
+		Balance: balance,
+	}
+	jsonResponseBody, err := json.Marshal(balanceResponseBody)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponseBody)
 }
 
 func main() {
 	http.HandleFunc("/signup", SignUpHandler)
 
 	http.HandleFunc("/deposit", DepositHandler)
+
+	http.HandleFunc("/withdraw", WithdrawHandler)
 
 	http.ListenAndServe(":8081", nil)
 }

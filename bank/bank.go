@@ -68,7 +68,9 @@ type Bank struct {
 }
 
 func NewBank() *Bank {
-	bank := Bank{}
+	bank := Bank{
+		users: make(map[string]User),
+	}
 
 	return &bank
 }
